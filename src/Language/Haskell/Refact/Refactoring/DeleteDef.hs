@@ -4,8 +4,8 @@ module Language.Haskell.Refact.Refactoring.DeleteDef
   (deleteDef, compDeleteDef) where
 
 import qualified Data.Generics as SYB
-import qualified GHC.SYB.Utils as SYB
-import BasicTypes
+-- import qualified GHC.SYB.Utils as SYB
+-- import BasicTypes
 import qualified GHC
 import Control.Monad
 import Control.Monad.State

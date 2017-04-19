@@ -203,7 +203,7 @@ spec = do
       setCurrentDirectory "./test/testdata/cabal/cabal4"
 
       let settings = defaultSettings { rsetEnabledTargets = (True,True,True,True)
-                                     -- , rsetVerboseLevel = Debug
+                                     , rsetVerboseLevel = Debug
                                      }
 
       let handler = [Handler handler1]

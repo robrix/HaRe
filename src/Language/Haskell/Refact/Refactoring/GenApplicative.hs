@@ -10,14 +10,14 @@ import qualified GHC as GHC
 import qualified RdrName as GHC
 import System.Directory
 import FastString
-import Data.Map as Map (union)
+-- import Data.Map as Map (union)
 import Data.Generics as SYB
 import GHC.SYB.Utils as SYB
 import Data.List
-import Control.Monad
+-- import Control.Monad
 import Language.Haskell.GHC.ExactPrint
 import Language.Haskell.GHC.ExactPrint.Types
-import Language.Haskell.GHC.ExactPrint.Print
+-- import Language.Haskell.GHC.ExactPrint.Print
 import Language.Haskell.GHC.ExactPrint.Parsers
 
 genApplicative :: RefactSettings -> GM.Options -> FilePath -> SimpPos -> IO [FilePath]

@@ -13,6 +13,7 @@ import           Language.Haskell.Refact.API
 import           Language.Haskell.Refact.HaRe
 import           Options.Applicative.Simple
 import qualified GhcMod as GM
+import qualified GhcMod.Types as GM
 import qualified Paths_HaRe as Meta
 
 import           GhcMod.Options.Options
