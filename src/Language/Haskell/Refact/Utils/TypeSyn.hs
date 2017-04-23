@@ -51,7 +51,7 @@ instance GHC.Outputable GHC.NameSpace where
   ppr x = GHC.text $ show x
 
 
-
+#if __GLASGOW_HASKELL__ <= 800
 instance GHC.Outputable (GHC.MatchGroup GHC.Name (GHC.LHsExpr GHC.Name)) where
   ppr (GHC.MG ms _ _ _) = GHC.text "MatchGroup" GHC.<+> GHC.ppr ms
 
@@ -59,7 +59,7 @@ instance GHC.Outputable (GHC.Match GHC.Name (GHC.LHsExpr GHC.Name)) where
   ppr (GHC.Match _fn pats mtyp grhs) = GHC.text "Match" GHC.<+> GHC.ppr pats
                                                     GHC.<+> GHC.ppr mtyp
                                                     GHC.<+> GHC.ppr grhs
-
+#endif
 
 instance GHC.Outputable (GHC.GRHSs GHC.Name (GHC.LHsExpr GHC.Name)) where
   ppr (GHC.GRHSs grhss binds) = GHC.text "GRHSs" GHC.<+> GHC.ppr grhss

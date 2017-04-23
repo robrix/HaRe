@@ -70,8 +70,11 @@ getModulesAsGraph drop_hs_boot_nodes summaries mb_root_mod
             -- the specified node.
             let root | Just node <- lookup_node HsSrcFile root_mod, graph `hasVertexG` node = node
                      | otherwise = panic "module does not exist"
+#if __GLASGOW_HASKELL__ <= 800
             in graphFromEdgedVertices (seq root (reachableG graph root))
-
+#else
+            in graphFromEdgedVerticesUniq (seq root (reachableG graph root))
+#endif
 
 
 
@@ -107,7 +110,11 @@ summaryNodeSummary (s, _, _) = s
 
 moduleGraphNodes :: Bool -> [ModSummary]
   -> (Graph SummaryNode, HscSource -> ModuleName -> Maybe SummaryNode)
+#if __GLASGOW_HASKELL__ <= 800
 moduleGraphNodes drop_hs_boot_nodes summaries = (graphFromEdgedVertices nodes, lookup_node)
+#else
+moduleGraphNodes drop_hs_boot_nodes summaries = (graphFromEdgedVerticesUniq nodes, lookup_node)
+#endif
   where
     numbered_summaries = zip summaries [1..]
 

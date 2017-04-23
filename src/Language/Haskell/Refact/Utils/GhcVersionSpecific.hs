@@ -4,9 +4,7 @@
 -- version of GHC, and should be the only one requiring CPP
 module Language.Haskell.Refact.Utils.GhcVersionSpecific
   (
-    prettyprint
-  , prettyprint2
-  , ppType
+    ppType
   , setGhcContext
   , showGhcQual
   )
@@ -20,31 +18,10 @@ import qualified Outputable    as GHC
 
 -- ---------------------------------------------------------------------
 
-
-prettyprint :: (GHC.Outputable a) => a -> String
-#if __GLASGOW_HASKELL__ > 706
-prettyprint x = GHC.renderWithStyle GHC.unsafeGlobalDynFlags (GHC.ppr x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
-#elif __GLASGOW_HASKELL__ > 704
-prettyprint x = GHC.renderWithStyle GHC.tracingDynFlags (GHC.ppr x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
-#else
-prettyprint x = GHC.renderWithStyle                     (GHC.ppr x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
-#endif
-
--- ---------------------------------------------------------------------
-
-prettyprint2 :: (GHC.Outputable a) => a -> String
-#if __GLASGOW_HASKELL__ > 706
-prettyprint2 x = GHC.renderWithStyle GHC.unsafeGlobalDynFlags (GHC.ppr x) (GHC.cmdlineParserStyle)
-#elif __GLASGOW_HASKELL__ > 704
-prettyprint2 x = GHC.renderWithStyle GHC.tracingDynFlags (GHC.ppr x) (GHC.cmdlineParserStyle)
-#else
-prettyprint2 x = GHC.renderWithStyle                     (GHC.ppr x) (GHC.cmdlineParserStyle)
-#endif
-
--- ---------------------------------------------------------------------
-
 ppType :: GHC.Type -> String
-#if __GLASGOW_HASKELL__ > 706
+#if __GLASGOW_HASKELL__ > 800
+ppType x = GHC.renderWithStyle GHC.unsafeGlobalDynFlags (GHC.pprParendType x) (GHC.mkUserStyle GHC.unsafeGlobalDynFlags GHC.neverQualify GHC.AllTheWay)
+#elif __GLASGOW_HASKELL__ > 706
 ppType x = GHC.renderWithStyle GHC.unsafeGlobalDynFlags (GHC.pprParendType x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
 #elif __GLASGOW_HASKELL__ > 704
 ppType x = GHC.renderWithStyle GHC.tracingDynFlags (GHC.pprParendType x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
