@@ -222,8 +222,6 @@ module Language.Haskell.Refact.API
  -- * from `Language.Haskell.Refact.Utils.GhcVersionSpecific`
   , showGhc
   , showGhcQual
-  , prettyprint
-  , prettyprint2
   , ppType
   , setGhcContext
 

@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP #-}
 
 module Language.Haskell.Refact.Refactoring.DupDef
   ( duplicateDef
@@ -293,5 +294,9 @@ willBeUnQualImportedBy modName (_,imps,_,_)
                       else Just $ nub $ map getModName ms
 
          where getModName (GHC.L _ (GHC.ImportDecl _ _modName1 _qualify _source _safe _isQualified _isImplicit as _h))
+#if __GLASGOW_HASKELL__ <= 800
                  = if isJust as then (fromJust as)
+#else
+                 = if isJust as then (GHC.unLoc $ fromJust as)
+#endif
                                 else modName

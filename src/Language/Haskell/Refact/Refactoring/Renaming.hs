@@ -240,8 +240,11 @@ condChecking2 nm oldPN newName t = do
 #if __GLASGOW_HASKELL__ <= 710
     inMatch (GHC.Match f@(Just (ln,_)) pats  mtype (GHC.GRHSs rhs ds)
              ::GHC.Match GHC.RdrName (GHC.LHsExpr GHC.RdrName)) = do
-#else
+#elif __GLASGOW_HASKELL__ <= 800
     inMatch (GHC.Match f@(GHC.FunBindMatch ln isInfix) pats  mtype (GHC.GRHSs rhs ds)
+             ::GHC.Match GHC.RdrName (GHC.LHsExpr GHC.RdrName)) = do
+#else
+    inMatch (GHC.Match f@(GHC.FunRhs ln isInfix) pats  mtype (GHC.GRHSs rhs ds)
              ::GHC.Match GHC.RdrName (GHC.LHsExpr GHC.RdrName)) = do
 #endif
       isDeclaredPats <- isDeclaredBy pats
@@ -336,8 +339,10 @@ condChecking2 nm oldPN newName t = do
 
 #if __GLASGOW_HASKELL__ <= 710
     inTyClDecl dd@(GHC.DataDecl ln (GHC.HsQTvs _ns tyvars) defn _ :: GHC.TyClDecl GHC.RdrName) = do
-#else
+#elif __GLASGOW_HASKELL__ <= 800
     inTyClDecl dd@(GHC.DataDecl ln tyvars defn _ _ :: GHC.TyClDecl GHC.RdrName) = do
+#else
+    inTyClDecl dd@(GHC.DataDecl ln tyvars fixity defn _ _ :: GHC.TyClDecl GHC.RdrName) = do
 #endif
       declared <- isDeclaredBy dd
       declaredtv <- isDeclaredBy tyvars

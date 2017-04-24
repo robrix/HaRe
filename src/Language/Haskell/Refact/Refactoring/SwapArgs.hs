@@ -106,21 +106,23 @@ doSwap n1 = do
          -- 3. Type signature...
 #if __GLASGOW_HASKELL__ <= 710
          inType nm (GHC.L x (GHC.TypeSig [lname] types pns)::GHC.LSig GHC.RdrName)
-#else
+#elif __GLASGOW_HASKELL__ <= 800
          inType nm (GHC.L x (GHC.TypeSig [lname] (GHC.HsIB ivs (GHC.HsWC wcs mwc types)))::GHC.LSig GHC.RdrName)
+#else
+         inType nm (GHC.L x (GHC.TypeSig [lname] (GHC.HsWC wcs (GHC.HsIB vars types cl)))::GHC.LSig GHC.RdrName)
 #endif
            | GHC.nameUnique (rdrName2NamePure nm lname) == GHC.nameUnique n1
                 = do
                      logm $ "doSwap.inType"
                      let (t1:t2:ts) = tyFunToList types
-                     -- t1' <- update t1 t2 t1
-                     -- t2' <- update t2 t1 t2
                      let t1' = t2
                      let t2' = t1
 #if __GLASGOW_HASKELL__ <= 710
                      return (GHC.L x (GHC.TypeSig [lname] (tyListToFun (t1':t2':ts)) pns))
-#else
+#elif __GLASGOW_HASKELL__ <= 800
                      return (GHC.L x (GHC.TypeSig [lname] (GHC.HsIB ivs (GHC.HsWC wcs mwc (tyListToFun (t1':t2':ts))))))
+#else
+                     return (GHC.L x (GHC.TypeSig [lname] (GHC.HsWC wcs (GHC.HsIB vars (tyListToFun (t1':t2':ts)) cl))))
 #endif
 
 #if __GLASGOW_HASKELL__ <= 710

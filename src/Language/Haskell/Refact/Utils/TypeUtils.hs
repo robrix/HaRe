@@ -1529,7 +1529,7 @@ addItemsToExport modu@(GHC.L l (GHC.HsModule modName exps imps ds deps hs)) (Jus
                         else return modu
        Nothing   -> return modu
 
-addItemsToExport (GHC.L l (GHC.HsModule _ (Just ents) _ _ _ _)) Nothing createExp ids
+addItemsToExport (GHC.L _ (GHC.HsModule _ (Just ents) _ _ _ _)) Nothing createExp ids
   = assert False undefined
     -- = do ((toks,_),others)<-get
     --      let es = case ids of
@@ -2213,13 +2213,25 @@ renamePN oldPN newName useQual t = do
 
     -- ---------------------------------
 
+    -- AZ:TODO: pretty sure old and newRdr are always the same, modulo
+    -- newNameCalc'. Hence newNameCalc' can probably be moved into makeNewName
     makeNewName :: GHC.Located GHC.RdrName -> GHC.RdrName -> RefactGhc (GHC.Located GHC.RdrName)
     makeNewName old newRdr = do
-      ss' <- liftT $ uniqueSrcSpanT
+      ss' <- liftT uniqueSrcSpanT
       let new = (GHC.L ss' newRdr)
       liftT $ modifyAnnsT (copyAnn old new)
       addToNameMap ss' newName
       return new
+
+#if __GLASGOW_HASKELL__ > 800
+    makeNewNameIe :: HowToQual -> GHC.LIEWrappedName GHC.RdrName
+                  -> RefactGhc (GHC.LIEWrappedName GHC.RdrName)
+    makeNewNameIe useQual' old = do
+      let old' = (GHC.ieLWrappedName old)
+      let newRdr = newNameCalc useQual' $ GHC.unLoc old'
+      new <- makeNewName old' (newNameCalc useQual' $ GHC.unLoc old')
+      return (GHC.replaceLWrappedName old (GHC.unLoc new))
+#endif
 
     -- ---------------------------------
 
@@ -2253,11 +2265,8 @@ renamePN oldPN newName useQual t = do
      nm <- getRefactNameMap
      if cond nm old
        then do
-          -- logDataWithAnns "renamePN:rename old :" old
           let nn = newNameCalc useQual' n
           new <- makeNewName old nn
-          -- logDataWithAnns "renamePN:rename new :" new
-          -- logDataWithAnns "renamePN:rename old2 :" old
           return new
        else return old
 
@@ -2319,36 +2328,49 @@ renamePN oldPN newName useQual t = do
     -- ---------------------------------
 
     renameLIE :: HowToQual -> (GHC.LIE GHC.RdrName) -> RefactGhc (GHC.LIE GHC.RdrName)
-    renameLIE useQual' x@(GHC.L l (GHC.IEVar old@(GHC.L ln n))) = do
+    renameLIE useQual' x@(GHC.L l (GHC.IEVar old)) = do
      nm <- getRefactNameMap
-     if cond nm (GHC.L ln n)
+#if __GLASGOW_HASKELL__ <= 800
+     if cond nm old
        then do
-          new <- makeNewName old (newNameCalc useQual' n)
+          new <- makeNewName old (newNameCalc useQual' $ GHC.unLoc old)
           return (GHC.L l (GHC.IEVar new))
+#else
+     if cond nm (GHC.ieLWrappedName old)
+       then do
+          new <- makeNewNameIe useQual' old
+          return (GHC.L l (GHC.IEVar new))
+#endif
        else return x
 
     renameLIE useQual' x@(GHC.L l (GHC.IEThingAbs old@(GHC.L _ln n))) = do
      nm <- getRefactNameMap
+#if __GLASGOW_HASKELL__ <= 800
      if cond nm (GHC.L l n)
        then do
-          -- logm $ "renamePN:renameLIE.IEThingAbs at :" ++ (showGhc l)
-          let nn = newNameCalc useQual' n
-
-          new <- makeNewName old nn
-
+          new <- makeNewName old (newNameCalc useQual' n)
           return (GHC.L l (GHC.IEThingAbs new))
+#else
+     if cond nm (GHC.ieLWrappedName old)
+       then do
+          new <- makeNewNameIe useQual' old
+          return (GHC.L l (GHC.IEThingAbs new))
+#endif
        else return x
 
     renameLIE useQual' x@(GHC.L l (GHC.IEThingAll old@(GHC.L ln n))) = do
      nm <- getRefactNameMap
+#if __GLASGOW_HASKELL__ <= 800
      if cond nm (GHC.L ln n)
        then do
-          -- logm $ "renamePN:renameLIE.IEThingAll at :" ++ (showGhc l)
-          let nn = newNameCalc useQual' n
-
-          new <- makeNewName old nn
-
+          new <- makeNewName old (newNameCalc useQual' n)
           return (GHC.L l (GHC.IEThingAll new))
+#else
+     if cond nm (GHC.ieLWrappedName old)
+       then do
+          new <- makeNewNameIe useQual' old
+          return (GHC.L l (GHC.IEThingAll new))
+#endif
        else return x
 
     -- TODO: check inside the ns here too
@@ -2359,17 +2381,25 @@ renamePN oldPN newName useQual t = do
 #endif
      = do
          nm <- getRefactNameMap
+#if __GLASGOW_HASKELL__ <= 800
          old' <- if (cond nm (GHC.L ln n))
            then do
-             logm $ "renamePN:renameLIE.IEThingWith at :" ++ (showGhc l)
-             -- let nn = newNameCalcBool useQual' n
-             let nn = newNameCalc useQual' n
-             new <- makeNewName old nn
+             new <- makeNewName old (newNameCalc useQual' n)
              return new
            else return old
+#else
+         old' <- if (cond nm (GHC.ieLWrappedName old))
+           then do
+             new <- makeNewNameIe useQual' old
+             return new
+           else return old
+#endif
 
-
+#if __GLASGOW_HASKELL__ <= 800
          ns' <- if (any (\(GHC.L lnn nn) -> cond nm (GHC.L lnn nn)) ns)
+#else
+         ns' <- if (any (\nn -> cond nm (GHC.ieLWrappedName nn)) ns)
+#endif
            then renameTransform useQual' ns
            else return ns
 #if __GLASGOW_HASKELL__ <= 710

@@ -100,8 +100,10 @@ ifToCaseTransform li@(GHC.L _ (GHC.HsIf _se e1 e2 e3)) = do
                 (GHC.L trueMatchLoc $ GHC.Match
 #if __GLASGOW_HASKELL__ <= 710
                  Nothing
-#else
+#elif __GLASGOW_HASKELL__ <= 800
                  GHC.NonFunBindMatch
+#else
+                 GHC.CaseAlt
 #endif
                  [
                    GHC.L trueLoc1 $ GHC.ConPatIn (GHC.L trueLoc trueName) (GHC.PrefixCon [])
@@ -120,8 +122,10 @@ ifToCaseTransform li@(GHC.L _ (GHC.HsIf _se e1 e2 e3)) = do
               , (GHC.L falseMatchLoc $ GHC.Match
 #if __GLASGOW_HASKELL__ <= 710
                   Nothing
-#else
+#elif __GLASGOW_HASKELL__ <= 800
                   GHC.NonFunBindMatch
+#else
+                  GHC.CaseAlt
 #endif
                  [
                    GHC.L falseLoc1 $ GHC.ConPatIn (GHC.L falseLoc falseName) (GHC.PrefixCon [])
