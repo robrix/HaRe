@@ -1467,7 +1467,6 @@ spec = do
          return (res1,res2,names,names2,sumSquares,ssUnqual,ctx)
       ((r1,r2,ns,ns2,ss,ssu,_c),_s) <- ct $ runRefactGhc comp (initialState { rsModule = initRefactModule [] t }) testOptions
 
-      (prettyprint ss) `shouldBe` "sumSquares"
       (showGhcQual ss) `shouldBe` "ScopeAndQual.sumSquares"
       (show $ ssu) `shouldBe` "False"
       (showGhcQual ns) `shouldBe` "[ScopeAndQual.sum]"

@@ -1,2 +1,7 @@
 packages: .
-          -- ../../DanielG/ghc-mod
+          -- ../../alanz/ghc-mod
+          ../../DanielG/ghc-mod
+          -- ../../alanz/cabal-helper
+          -- ../../DanielG/cabal-helper
+          ../ghc-exactprint
+          ../ghc-syb/utils
