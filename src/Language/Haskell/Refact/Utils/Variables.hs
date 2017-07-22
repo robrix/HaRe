@@ -818,6 +818,7 @@ getDeclaredTypesRdr (GHC.L _ (GHC.TyClD decl)) = do
   case decl of
 #if __GLASGOW_HASKELL__ <= 710
     (GHC.FamDecl (GHC.FamilyDecl _ ln _ _)) -> return [rdrName2NamePure nm ln]
+    (GHC.SynDecl ln  _ _ _ ) -> return [rdrName2NamePure nm ln]
 #elif __GLASGOW_HASKELL__ <= 800
     (GHC.FamDecl (GHC.FamilyDecl _ ln _ _ _)) -> return [rdrName2NamePure nm ln]
     (GHC.SynDecl ln  _ _ _) -> return [rdrName2NamePure nm ln]
@@ -825,6 +826,7 @@ getDeclaredTypesRdr (GHC.L _ (GHC.TyClD decl)) = do
     (GHC.FamDecl (GHC.FamilyDecl _ ln _ _ _ _)) -> return [rdrName2NamePure nm ln]
     (GHC.SynDecl ln  _ _ _ _) -> return [rdrName2NamePure nm ln]
 #endif
+
 #if __GLASGOW_HASKELL__ <= 710
     (GHC.DataDecl ln _ defn _) -> do
       let dds = concatMap (GHC.con_names . GHC.unLoc) $ GHC.dd_cons defn
