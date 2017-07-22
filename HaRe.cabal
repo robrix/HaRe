@@ -46,9 +46,10 @@ Category:                       Development, Refactoring
 Cabal-Version:                  >= 1.8
 Build-Type:                     Simple
 
-tested-with:                    GHC == 7.10.3, GHC == 8.0.1, GHC == 8.0.2
+tested-with:                    GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.1
 
 data-files:                     elisp/*.el
+                                elisp/tests/*.el
                                 configure.sh
                                 test/testdata/*.cabal
                                 test/testdata/*.hs
@@ -240,6 +241,7 @@ test-suite spec
     , TypeUtilsSpec
     , UtilsSpec
     , DeleteDefSpec
+    -- , Spec
 --    , IntroduceTypeSynSpec
 --    , UnwrapTypeSynSpec
 
@@ -287,6 +289,7 @@ test-suite spec
     , parsec
     , case-insensitive
     , HaRe
+  -- build-tools: hspec-discover >= 2.4.4 && < 2.5
   Extensions:      CPP
   if impl (ghc < 7.10.2)
     buildable: False
