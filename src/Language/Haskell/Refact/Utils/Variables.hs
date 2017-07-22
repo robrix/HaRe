@@ -550,10 +550,10 @@ hsFreeAndDeclaredRdr' nm t = do
           ltydecl (GHC.SynDecl ln _bndrs _ _ _fvs)
 #endif
               = return (FN [],DN [rdrName2NamePure nm ln])
-#if __GLASGOW_HASKELL__ <= 800
-          ltydecl (GHC.DataDecl ln tyvars defn _c _fvs) = do
-#elif __GLASGOW_HASKELL__ <= 710
+#if __GLASGOW_HASKELL__ <= 710
           ltydecl (GHC.DataDecl ln tyvars defn _fvs) = do
+#elif __GLASGOW_HASKELL__ <= 800
+          ltydecl (GHC.DataDecl ln tyvars defn _c _fvs) = do
 #else
           ltydecl (GHC.DataDecl ln tyvars _f defn _c _fvs) = do
 #endif
