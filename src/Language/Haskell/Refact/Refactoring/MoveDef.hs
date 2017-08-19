@@ -734,7 +734,11 @@ willBeUnQualImportedBy modName = do
         = if isJust as then simpModName (fromJust as)
                        else modName2
 
+#if __GLASGOW_HASKELL__ <= 800
        simpModName m = m
+#else
+       simpModName (GHC.L _ m) = m
+#endif
 
    logm $ "willBeUnQualImportedBy:(ms,res)=" ++ (showGhc (ms,res))
 

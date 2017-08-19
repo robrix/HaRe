@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -292,6 +293,12 @@ willBeUnQualImportedBy modName (_,imps,_,_)
          in if (emptyList ms) then Nothing
                       else Just $ nub $ map getModName ms
 
+#if __GLASGOW_HASKELL__ <= 800
          where getModName (GHC.L _ (GHC.ImportDecl _ _modName1 _qualify _source _safe _isQualified _isImplicit as _h))
                  = if isJust as then (fromJust as)
                                 else modName
+#else
+         where getModName (GHC.L _ (GHC.ImportDecl _ _modName1 _qualify _source _safe _isQualified _isImplicit as _h))
+                 = if isJust as then let GHC.L _ m = (fromJust as) in m
+                                else modName
+#endif

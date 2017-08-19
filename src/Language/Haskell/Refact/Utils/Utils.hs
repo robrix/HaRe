@@ -52,6 +52,7 @@ import Language.Haskell.GHC.ExactPrint.Utils
 
 import qualified GhcModCore          as GM
 import qualified GhcMod.Types        as GM
+import qualified GhcMod.ModuleLoader as GM
 
 import Language.Haskell.Refact.Utils.GhcModuleGraph
 import Language.Haskell.Refact.Utils.GhcVersionSpecific
@@ -88,7 +89,7 @@ getTargetGhc (GM.ModulePath _mn fp) = parseSourceFileGhc fp
 -- | Parse a single source file into a GHC session
 parseSourceFileGhc :: FilePath -> RefactGhc ()
 parseSourceFileGhc targetFile = do
-  (_, mtm) <- RefactGhc $ GM.getTypecheckedModuleGhc id targetFile
+  (_, mtm) <- RefactGhc $ GM.getTypecheckedModuleGhc' id targetFile
   case mtm of
     Nothing -> error $ "Couldn't get typechecked module for " ++ targetFile
     Just tm -> loadTypecheckedModule tm

@@ -412,7 +412,13 @@ causeNameClashInExports::  NameMap
 causeNameClashInExports nm pn newName modName parsed@(GHC.L _ p)
   = let exps = GHC.unLoc $ fromMaybe (GHC.noLoc []) (GHC.hsmodExports p)
         varExps = concatMap nameFromExport $ filter isImpVar exps
+#if __GLASGOW_HASKELL__ <= 800
         nameFromExport (GHC.L _ (GHC.IEVar x)) = [rdrName2NamePure nm x]
+#else
+        nameFromExport (GHC.L _ (GHC.IEVar (GHC.L _ (GHC.IEName x))))    = [rdrName2NamePure nm x]
+        nameFromExport (GHC.L _ (GHC.IEVar (GHC.L _ (GHC.IEPattern x)))) = [rdrName2NamePure nm x]
+        nameFromExport (GHC.L _ (GHC.IEVar (GHC.L _ (GHC.IEType x))))    = [rdrName2NamePure nm x]
+#endif
         nameFromExport _                       = []
         -- TODO: make withoutQual part of the API
         withoutQual n = showGhc $ GHC.localiseName n
@@ -868,6 +874,9 @@ addImportDecl (GHC.L l p) modName pkgQual source safe qualify alias hide idNames
      mkImpDecl = do
        newSpan1 <- liftT uniqueSrcSpanT
        newSpan2 <- liftT uniqueSrcSpanT
+#if __GLASGOW_HASKELL__ >= 802
+       newSpan3 <- liftT uniqueSrcSpanT
+#endif
        newEnts <- mkNewEntList idNames
        let lNewEnts = GHC.L newSpan2 newEnts
        -- logm $ "addImportDecl.mkImpDecl:adding anns for:" ++ showGhc lNewEnts
@@ -878,14 +887,22 @@ addImportDecl (GHC.L l p) modName pkgQual source safe qualify alias hide idNames
        let lmodname = GHC.L newSpan1 modName
        liftT $ addSimpleAnnT lmodname (DP (0,1)) [((G GHC.AnnVal),DP (0,0))]
        return $ GHC.ImportDecl
+#if __GLASGOW_HASKELL__ >= 802
+                        { GHC.ideclSourceSrc = GHC.NoSourceText
+#else
                         { GHC.ideclSourceSrc = Nothing
+#endif
                         , GHC.ideclName      = lmodname
                         , GHC.ideclPkgQual   = pkgQual
                         , GHC.ideclSource    = source
                         , GHC.ideclSafe      = safe
                         , GHC.ideclQualified = qualify
                         , GHC.ideclImplicit  = False
+#if __GLASGOW_HASKELL__ >= 802
+                        , GHC.ideclAs        = GHC.L newSpan3 <$> alias'
+#else
                         , GHC.ideclAs        = alias'
+#endif
                         , GHC.ideclHiding    =
                                       (if idNames == [] && hide == False then
                                             Nothing
@@ -1061,8 +1078,13 @@ mkNewEntList idNames = do
 mkNewEnt :: Bool -> GHC.RdrName -> RefactGhc (GHC.LIE GHC.RdrName)
 mkNewEnt addCommaAnn pn = do
   newSpan <- liftT uniqueSrcSpanT
+#if __GLASGOW_HASKELL__ >= 802
+  let lpn = GHC.L newSpan (GHC.IEName (GHC.L newSpan pn))
+  let lie = GHC.L newSpan (GHC.IEVar lpn)
+#else
   let lpn = GHC.L newSpan pn
   let lie = GHC.L newSpan (GHC.IEVar lpn)
+#endif
   liftT $ addSimpleAnnT lpn (DP (0,0)) [((G GHC.AnnVal),DP (0,0))]
   when addCommaAnn $
     liftT $ addSimpleAnnT lie (DP (0,0)) [((G GHC.AnnComma),DP (0,0))]
@@ -1149,8 +1171,10 @@ addParamsToSigs :: [GHC.Name] -> GHC.LSig GHC.RdrName -> RefactGhc (GHC.LSig GHC
 addParamsToSigs [] ms = return ms
 #if __GLASGOW_HASKELL__ <= 710
 addParamsToSigs newParams (GHC.L l (GHC.TypeSig lns ltyp pns)) = do
-#else
+#elif __GLASGOW_HASKELL__ <= 800
 addParamsToSigs newParams (GHC.L l (GHC.TypeSig lns (GHC.HsIB ivs (GHC.HsWC wcs mwc ltyp)))) = do
+#else
+addParamsToSigs newParams (GHC.L l (GHC.TypeSig lns (GHC.HsWC wcs (GHC.HsIB ivs ltyp mwc)))) = do
 #endif
   logm $ "addParamsToSigs:newParams=" ++ showGhc newParams
   mts <- mapM getTypeForName newParams
@@ -1165,8 +1189,10 @@ addParamsToSigs newParams (GHC.L l (GHC.TypeSig lns (GHC.HsIB ivs (GHC.HsWC wcs 
   if sigOk
 #if __GLASGOW_HASKELL__ <= 710
     then return (GHC.L l (GHC.TypeSig lns typ' pns))
-#else
+#elif __GLASGOW_HASKELL__ <= 800
     then return (GHC.L l (GHC.TypeSig lns (GHC.HsIB ivs (GHC.HsWC wcs mwc typ'))))
+#else
+    then return (GHC.L l (GHC.TypeSig lns (GHC.HsWC wcs (GHC.HsIB ivs typ' mwc))))
 #endif
     else error $ "\nNew type signature may fail type checking: " ++ newStr ++ "\n"
   where
@@ -1174,7 +1200,7 @@ addParamsToSigs newParams (GHC.L l (GHC.TypeSig lns (GHC.HsIB ivs (GHC.HsWC wcs 
     addOneType et t = do
       hst <- typeToLHsType t
       ss1 <- uniqueSrcSpanT
-#if __GLASGOW_HASKELL__ <= 710
+#if __GLASGOW_HASKELL__ <= 710 || __GLASGOW_HASKELL__ >= 802
       hst1 <- case t of
         (GHC.FunTy _ _) -> do
           ss <- uniqueSrcSpanT
@@ -1234,8 +1260,10 @@ isNewSignatureOk types = do
           ([] `SYB.mkQ` usesForAll) types
 #if __GLASGOW_HASKELL__ <= 710
     usesForAll (GHC.ForAllTy _ _) = [1::Int]
-#else
+#elif __GLASGOW_HASKELL__ <= 800
     usesForAll (GHC.ForAllTy (GHC.Named _ _) _) = [1::Int]
+#else
+    usesForAll (GHC.ForAllTy _ _) = [1::Int]
 #endif
     usesForAll _                  = []
 
@@ -1249,8 +1277,10 @@ typeToLHsType (GHC.TyVarTy v)   = do
   ss <- uniqueSrcSpanT
 #if __GLASGOW_HASKELL__ <= 710
   let typ = GHC.L ss (GHC.HsTyVar (GHC.nameRdrName $ Var.varName v))
-#else
+#elif __GLASGOW_HASKELL__ <= 800
   let typ = GHC.L ss (GHC.HsTyVar (GHC.L ss (GHC.nameRdrName $ Var.varName v)))
+#else
+  let typ = GHC.L ss (GHC.HsTyVar GHC.NotPromoted (GHC.L ss (GHC.nameRdrName $ Var.varName v)))
 #endif
   addSimpleAnnT typ (DP (0,0)) [((G GHC.AnnVal),DP (0,0))]
   return typ
@@ -1263,7 +1293,7 @@ typeToLHsType (GHC.AppTy t1 t2) = do
 
 typeToLHsType t@(GHC.TyConApp _tc _ts) = tyConAppToHsType t
 
-#if __GLASGOW_HASKELL__ <= 710
+#if __GLASGOW_HASKELL__ <= 710 || __GLASGOW_HASKELL__ >= 802
 typeToLHsType (GHC.FunTy t1 t2) = do
   t1' <- typeToLHsType t1
   t2' <- typeToLHsType t2
@@ -1294,13 +1324,21 @@ typeToLHsType (GHC.ForAllTy _v t) = do
 
 typeToLHsType (GHC.LitTy (GHC.NumTyLit i)) = do
   ss <- uniqueSrcSpanT
+#if __GLASGOW_HASKELL__ <= 800
   let typ = GHC.L ss (GHC.HsTyLit (GHC.HsNumTy (show i) i)) :: GHC.LHsType GHC.RdrName
+#else
+  let typ = GHC.L ss (GHC.HsTyLit (GHC.HsNumTy (GHC.SourceText (show i)) i)) :: GHC.LHsType GHC.RdrName
+#endif
   addSimpleAnnT typ (DP (0,0)) [((G GHC.AnnVal),DP (0,0))]
   return typ
 
 typeToLHsType (GHC.LitTy (GHC.StrTyLit s)) = do
   ss <- uniqueSrcSpanT
+#if __GLASGOW_HASKELL__ <= 800
   let typ = GHC.L ss (GHC.HsTyLit (GHC.HsStrTy "" s)) :: GHC.LHsType GHC.RdrName
+#else
+  let typ = GHC.L ss (GHC.HsTyLit (GHC.HsStrTy GHC.NoSourceText s)) :: GHC.LHsType GHC.RdrName
+#endif
   addSimpleAnnT typ (DP (0,0)) [((G GHC.AnnVal),DP (0,0))]
   return typ
 
@@ -1353,7 +1391,11 @@ tyConAppToHsType (GHC.TyConApp tc _ts) = r (show $ GHC.tyConName tc)
   where
     r str = do
       ss <- uniqueSrcSpanT
+#if __GLASGOW_HASKELL__ <= 800
       let typ = GHC.L ss (GHC.HsTyLit (GHC.HsStrTy str $ GHC.mkFastString str)) :: GHC.LHsType GHC.RdrName
+#else
+      let typ = GHC.L ss (GHC.HsTyLit (GHC.HsStrTy (GHC.SourceText str) $ GHC.mkFastString str)) :: GHC.LHsType GHC.RdrName
+#endif
       addSimpleAnnT typ (DP (0,0)) [((G GHC.AnnVal),DP (0,1))]
       return typ
 
@@ -1644,52 +1686,52 @@ The code
 
 results in
 
-          (GRHSs 
+          (GRHSs
            [
             ({ LiftToToplevel/D1.hs:(13,15)-(15,16) }
              Just (Ann (DP (0,-1)) [] [] [] Nothing Nothing)
-             (GRHS 
-              [] 
+             (GRHS
+              []
               ({ LiftToToplevel/D1.hs:13:17-43 }
                Just (Ann (DP (0,1)) [] [] [] Nothing Nothing)
-               (OpApp 
+               (OpApp
                 ({ LiftToToplevel/D1.hs:13:17-27 }
                  Just (Ann (DP (0,0)) [] [] [] Nothing Nothing)
-                 (HsApp 
+                 (HsApp
                   ({ LiftToToplevel/D1.hs:13:17-25 }
                    Just (Ann (DP (0,0)) [] [] [((G AnnOpenP),DP (0,0)),((G AnnCloseP),DP (0,0))] Nothing Nothing)
-                   (HsPar 
+                   (HsPar
                     ({ LiftToToplevel/D1.hs:13:18-24 }
                      Just (Ann (DP (0,0)) [] [] [] Nothing Nothing)
-                     (HsApp 
+                     (HsApp
                       ({ LiftToToplevel/D1.hs:13:18-19 }
                        Just (Ann (DP (0,0)) [] [] [((G AnnVal),DP (0,0))] Nothing Nothing)
-                       (HsVar 
-                        (Unqual {OccName: sq}))) 
+                       (HsVar
+                        (Unqual {OccName: sq})))
                       ({ LiftToToplevel/D1.hs:13:21-24 }
                        Just (Ann (DP (0,1)) [] [] [((G AnnVal),DP (0,0))] Nothing Nothing)
-                       (HsVar 
-                        (Unqual {OccName: bar2}))))))) 
+                       (HsVar
+                        (Unqual {OccName: bar2})))))))
                   ({ LiftToToplevel/D1.hs:13:27 }
                    Just (Ann (DP (0,1)) [] [] [((G AnnVal),DP (0,0))] Nothing Nothing)
-                   (HsVar 
-                    (Unqual {OccName: x}))))) 
+                   (HsVar
+                    (Unqual {OccName: x})))))
                 ({ LiftToToplevel/D1.hs:13:29 }
                  Just (Ann (DP (0,1)) [] [] [((G AnnVal),DP (0,0))] Nothing Nothing)
-                 (HsVar 
-                  (Unqual {OccName: +}))) 
-                (PlaceHolder) 
+                 (HsVar
+                  (Unqual {OccName: +})))
+                (PlaceHolder)
                 ({ LiftToToplevel/D1.hs:13:31-43 }
                  Just (Ann (DP (0,1)) [] [] [] Nothing Nothing)
-                 (HsApp 
+                 (HsApp
                   ({ LiftToToplevel/D1.hs:13:31-40 }
                    Just (Ann (DP (0,0)) [] [] [((G AnnVal),DP (0,0))] Nothing Nothing)
-                   (HsVar 
-                    (Unqual {OccName: sumSquares}))) 
+                   (HsVar
+                    (Unqual {OccName: sumSquares})))
                   ({ LiftToToplevel/D1.hs:13:42-43 }
                    Just (Ann (DP (0,1)) [] [] [((G AnnVal),DP (0,0))] Nothing Nothing)
-                   (HsVar 
-                    (Unqual {OccName: xs})))))))))] 
+                   (HsVar
+                    (Unqual {OccName: xs})))))))))]
 
 -}
 {-
@@ -2225,8 +2267,10 @@ renamePN oldPN newName useQual t = do
     renameTyVar :: HowToQual -> (GHC.Located (GHC.HsType GHC.RdrName)) -> RefactGhc (GHC.Located (GHC.HsType GHC.RdrName))
 #if __GLASGOW_HASKELL__ <= 710
     renameTyVar useQual' x@(GHC.L l (GHC.HsTyVar n)) = do
-#else
+#elif __GLASGOW_HASKELL__ <= 800
     renameTyVar useQual' x@(GHC.L l (GHC.HsTyVar (GHC.L _ n))) = do
+#else
+    renameTyVar useQual' x@(GHC.L l (GHC.HsTyVar promoted (GHC.L _ n))) = do
 #endif
      nm <- getRefactNameMap
      if cond nm (GHC.L l n)
@@ -2239,9 +2283,12 @@ renamePN oldPN newName useQual t = do
           liftT $ modifyAnnsT (copyAnn x (GHC.L ss' (GHC.HsTyVar nn)))
           addToNameMap ss' newName
           return (GHC.L l' (GHC.HsTyVar nn))
-#else
+#elif __GLASGOW_HASKELL__ <= 710
           new <- makeNewName (GHC.L l n) nn
           return (GHC.L l (GHC.HsTyVar new))
+#else
+          new <- makeNewName (GHC.L l n) nn
+          return (GHC.L l (GHC.HsTyVar promoted new))
 #endif
        else return x
     renameTyVar _ x = return x
@@ -2271,7 +2318,46 @@ renamePN oldPN newName useQual t = do
 
     -- ---------------------------------
 
+#if __GLASGOW_HASKELL__ >= 802
+    getIEWrapped :: GHC.IEWrappedName GHC.RdrName -> GHC.Located GHC.RdrName
+    getIEWrapped (GHC.IEName name) = name
+    getIEWrapped (GHC.IEPattern name) = name
+    getIEWrapped (GHC.IEType name) = name
+
+    setIEWrapped :: GHC.IEWrappedName GHC.RdrName -> GHC.Located GHC.RdrName -> GHC.IEWrappedName GHC.RdrName
+    setIEWrapped (GHC.IEName _) new = GHC.IEName new
+    setIEWrapped (GHC.IEPattern _) new = GHC.IEPattern new
+    setIEWrapped (GHC.IEType _) new = GHC.IEType new
+
+    renameLIEWrapped :: HowToQual -> GHC.LIEWrappedName GHC.RdrName -> RefactGhc (GHC.LIEWrappedName GHC.RdrName)
+    renameLIEWrapped useQual' x@(GHC.L l w) = do
+     let old@(GHC.L ln n) = getIEWrapped w
+     nm <- getRefactNameMap
+     if cond nm (GHC.L ln n)
+       then do
+          -- logm $ "renamePN:renameLIE.IEVar at :" ++ (showGhc l)
+          let nn = newNameCalc useQual' n
+
+          new <- makeNewName old nn
+
+          return (GHC.L l (setIEWrapped w new))
+       else return x
+#endif
+
     renameLIE :: HowToQual -> (GHC.LIE GHC.RdrName) -> RefactGhc (GHC.LIE GHC.RdrName)
+#if __GLASGOW_HASKELL__ >= 802
+    renameLIE useQual' (GHC.L l (GHC.IEVar old)) = GHC.L l . GHC.IEVar <$> renameLIEWrapped useQual' old
+    renameLIE useQual' (GHC.L l (GHC.IEThingAbs old)) = GHC.L l . GHC.IEThingAbs <$> renameLIEWrapped useQual' old
+    renameLIE useQual' (GHC.L l (GHC.IEThingAll old)) = GHC.L l . GHC.IEThingAll <$> renameLIEWrapped useQual' old
+    renameLIE useQual' (GHC.L l (GHC.IEThingWith old wc ns fls)) = do
+     nm <- getRefactNameMap
+     old' <- renameLIEWrapped useQual' old
+
+     ns' <- if (any (\(GHC.L _ nn) -> let GHC.L lnn nn' = getIEWrapped nn in cond nm (GHC.L lnn nn')) ns)
+       then renameTransform useQual' ns
+       else return ns
+     return (GHC.L l (GHC.IEThingWith old' wc ns' fls))
+#else
     renameLIE useQual' x@(GHC.L l (GHC.IEVar old@(GHC.L ln n))) = do
      nm <- getRefactNameMap
      if cond nm (GHC.L ln n)
@@ -2334,7 +2420,7 @@ renamePN oldPN newName useQual t = do
 #else
          return (GHC.L l (GHC.IEThingWith old' wc ns' fls))
 #endif
-
+#endif
     renameLIE _ x = do
          -- logm $ "renamePN:renameLIE miss for :" ++ (showGhc x)
          return x
@@ -2384,7 +2470,7 @@ renamePN oldPN newName useQual t = do
              return (Just (new,f))
            else return mln
        Nothing -> return mln
-#else
+#elif __GLASGOW_HASKELL__ <= 800
        GHC.FunBindMatch old f -> do
          nm <- getRefactNameMap
          if cond nm old
@@ -2393,6 +2479,15 @@ renamePN oldPN newName useQual t = do
              return (GHC.FunBindMatch new f)
            else return mln
        GHC.NonFunBindMatch -> return mln
+#else
+       GHC.FunRhs old fixity f -> do
+         nm <- getRefactNameMap
+         if cond nm old
+           then do
+             new <- makeNewName old newNameUnqual
+             return (GHC.FunRhs new fixity f)
+           else return mln
+       _ -> return mln
 #endif
      return (GHC.Match mln' pats' ty' grhss')
 

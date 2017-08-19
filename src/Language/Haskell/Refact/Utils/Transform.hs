@@ -29,7 +29,7 @@ import Language.Haskell.Refact.Utils.ExactPrint
 
 
 --Takes in a string corresponding to the module name to be imported
---Adds the import declaration at the end of that module's imports 
+--Adds the import declaration at the end of that module's imports
 addSimpleImportDecl :: String -> RefactGhc ()
 addSimpleImportDecl modName = do
   let modNm' = GHC.mkModuleName modName
@@ -60,13 +60,15 @@ wrapInLambda funNm varPat rhs = do
   par_lam <- wrapInPars l_lam
   return par_lam
 
-  --This function makes a match suitable for use inside of a lambda expression. Should change name or define it elsewhere to show that this is not a general-use function. 
+  --This function makes a match suitable for use inside of a lambda expression. Should change name or define it elsewhere to show that this is not a general-use function.
 mkMatch :: GHC.LPat GHC.RdrName -> GHC.GRHSs GHC.RdrName (GHC.LHsExpr GHC.RdrName) -> RefactGhc (GHC.LMatch GHC.RdrName (GHC.LHsExpr GHC.RdrName))
 mkMatch varPat rhs = do
 #if __GLASGOW_HASKELL__ <= 710
   lMatch@(GHC.L l m) <- locate (GHC.Match Nothing [varPat] Nothing rhs)
-#else
+#elif __GLASGOW_HASKELL__ <= 800
   lMatch@(GHC.L l m) <- locate (GHC.Match GHC.NonFunBindMatch [varPat] Nothing rhs)
+#else
+  lMatch@(GHC.L l m) <- locate (GHC.Match GHC.LambdaExpr [varPat] Nothing rhs)
 #endif
   let dp = [(G GHC.AnnRarrow, DP (0,1))]
       newAnn = annNone {annsDP = dp, annEntryDelta = DP (0,-1)}
@@ -83,7 +85,7 @@ wrapInParsWithDPs openDP closeDP expr = do
   return newAst
 
 
---Wraps a given expression in parenthesis and add the appropriate annotations, returns the modified ast chunk. 
+--Wraps a given expression in parenthesis and add the appropriate annotations, returns the modified ast chunk.
 wrapInPars :: GHC.LHsExpr GHC.RdrName -> RefactGhc (GHC.LHsExpr GHC.RdrName)
 wrapInPars = wrapInParsWithDPs (DP (0,1)) (DP (0,0))
 

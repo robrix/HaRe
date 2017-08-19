@@ -391,16 +391,21 @@ addArgToSig pn decls = do
        addArgToSig' :: [GHC.LHsDecl GHC.RdrName] -> RefactGhc [GHC.LHsDecl GHC.RdrName]
 #if __GLASGOW_HASKELL__ <= 710
        addArgToSig' sig@[(GHC.L l (GHC.SigD (GHC.TypeSig is tp pr)))] = do
-#else
+#elif __GLASGOW_HASKELL__ <= 800
        addArgToSig' sig@[(GHC.L l (GHC.SigD (GHC.TypeSig is typ@(GHC.HsIB ivs (GHC.HsWC wcs mwc tp)))))] = do
+#else
+       addArgToSig' sig@[(GHC.L l (GHC.SigD (GHC.TypeSig is typ@(GHC.HsWC wcs (GHC.HsIB ivs tp mwc)))))] = do
 #endif
               nm <- getRefactNameMap
               let tVar = mkNewTypeVarName sig
 #if __GLASGOW_HASKELL__ <= 710
               typeVar <- newTypeVar tVar tp
-#else
+#elif __GLASGOW_HASKELL__ <= 800
               typeVar' <- newTypeVar tVar tp
               let typeVar = GHC.HsIB ivs (GHC.HsWC wcs mwc typeVar')
+#else
+              typeVar' <- newTypeVar tVar tp
+              let typeVar = GHC.HsWC wcs (GHC.HsIB ivs typeVar' mwc)
 #endif
               let newSig=if length is==1
 #if __GLASGOW_HASKELL__ <= 710
@@ -430,9 +435,13 @@ addArgToSig pn decls = do
 #if __GLASGOW_HASKELL__ <= 710
          let tv = GHC.L lv (GHC.HsTyVar (mkRdrName tVar))
          liftT $ addSimpleAnnT tv  (DP (0,0)) [((G GHC.AnnVal),DP (0,0))]
-#else
+#elif __GLASGOW_HASKELL__ <= 800
          let lname = GHC.L lv (mkRdrName tVar)
          let tv = GHC.L lv (GHC.HsTyVar lname)
+         liftT $ addSimpleAnnT lname  (DP (0,0)) [((G GHC.AnnVal),DP (0,0))]
+#else
+         let lname = GHC.L lv (mkRdrName tVar)
+         let tv = GHC.L lv (GHC.HsTyVar GHC.NotPromoted lname)
          liftT $ addSimpleAnnT lname  (DP (0,0)) [((G GHC.AnnVal),DP (0,0))]
 #endif
          let typ = GHC.L ls (GHC.HsFunTy tv tp)
@@ -575,8 +584,10 @@ doRmParam pn nTh = do
              inMatch :: GHC.LMatch GHC.RdrName (GHC.LHsExpr GHC.RdrName) -> RefactGhc (GHC.LMatch GHC.RdrName (GHC.LHsExpr GHC.RdrName))
 #if __GLASGOW_HASKELL__ <= 710
              inMatch match@(GHC.L _ (GHC.Match (Just (_fun,_)) _pats _mtyp (GHC.GRHSs _rhs _ds)))
-#else
+#elif __GLASGOW_HASKELL__ <= 800
              inMatch match@(GHC.L _ (GHC.Match (GHC.FunBindMatch _fun _) _pats _mtyp (GHC.GRHSs _rhs _ds)))
+#else
+             inMatch match@(GHC.L _ (GHC.Match (GHC.FunRhs _fun _ _) _pats _mtyp (GHC.GRHSs _rhs _ds)))
 #endif
                = doRemoving' match
              inMatch _ = mzero
@@ -664,8 +675,10 @@ doRmParam pn nTh = do
                  -- a formal parameter only exists in a match
 #if __GLASGOW_HASKELL__ <= 710
                  rmInMatch nm (match@(GHC.L l (GHC.Match (Just (fun,b)) pats typ (GHC.GRHSs rhs decls)))::GHC.LMatch GHC.RdrName (GHC.LHsExpr GHC.RdrName))
-#else
+#elif __GLASGOW_HASKELL__ <= 800
                  rmInMatch nm (match@(GHC.L l (GHC.Match (GHC.FunBindMatch fun b) pats typ (GHC.GRHSs rhs decls)))::GHC.LMatch GHC.RdrName (GHC.LHsExpr GHC.RdrName))
+#else
+                 rmInMatch nm (match@(GHC.L l (GHC.Match (GHC.FunRhs fun fixity b) pats typ (GHC.GRHSs rhs decls)))::GHC.LMatch GHC.RdrName (GHC.LHsExpr GHC.RdrName))
 #endif
                    | rdrName2NamePure nm fun == pn' =
                        let  pat = pats!!nTh'     --get the nth formal parameter
@@ -684,8 +697,10 @@ doRmParam pn nTh = do
                                 liftT $ setAnnKeywordDP match (G GHC.AnnEqual) dp
 #if __GLASGOW_HASKELL__ <= 710
                               return (GHC.L l (GHC.Match (Just (fun,b)) pats' typ (GHC.GRHSs rhs decls)))
-#else
+#elif __GLASGOW_HASKELL__ <= 800
                               return (GHC.L l (GHC.Match (GHC.FunBindMatch fun b) pats' typ (GHC.GRHSs rhs decls)))
+#else
+                              return (GHC.L l (GHC.Match (GHC.FunRhs fun fixity b) pats' typ (GHC.GRHSs rhs decls)))
 #endif
                  rmInMatch _ _ = mzero
 
@@ -744,9 +759,11 @@ rmNthArgInSig pn nTh decls = do
    where
 #if __GLASGOW_HASKELL__ <= 710
          rmNthArgInSig' nm [GHC.L l (GHC.SigD (GHC.TypeSig is typ@(GHC.L lt (GHC.HsForAllTy ex wc bnd ctx tp)) c))]
-#else
+#elif __GLASGOW_HASKELL__ <= 800
          -- rmNthArgInSig' nm [GHC.L l (GHC.SigD (GHC.TypeSig is typ@(GHC.HsIB ivs (GHC.HsWC wcs mwc (GHC.L lt (GHC.HsForAllTy bnd tp))))))]
          rmNthArgInSig' nm [GHC.L l (GHC.SigD (GHC.TypeSig is typ@(GHC.HsIB ivs (GHC.HsWC wcs mwc tp))))]
+#else
+         rmNthArgInSig' nm [GHC.L l (GHC.SigD (GHC.TypeSig is typ@(GHC.HsWC wcs (GHC.HsIB ivs tp mwc))))]
 #endif
           =do
               ed <- liftT $ getEntryDPT tp
@@ -756,9 +773,11 @@ rmNthArgInSig pn nTh decls = do
               liftT $ setEntryDPT (GHC.L lp' tp') ed
 #if __GLASGOW_HASKELL__ <= 710
               let typ' = GHC.L lt (GHC.HsForAllTy ex wc bnd ctx (GHC.L lp' tp'))
-#else
+#elif __GLASGOW_HASKELL__ <= 800
               -- let typ' = GHC.HsIB ivs (GHC.HsWC wcs mwc (GHC.L lt (GHC.HsForAllTy bnd (GHC.L lp' tp'))))
               let typ' = GHC.HsIB ivs (GHC.HsWC wcs mwc (GHC.L lp' tp'))
+#else
+              let typ' = GHC.HsWC wcs (GHC.HsIB ivs (GHC.L lp' tp') mwc)
 #endif
               newSig <- liftT $ if length is ==1
                 then --this type signature only defines the type of pn
@@ -816,8 +835,10 @@ getParam pos = do
     where
 #if __GLASGOW_HASKELL__ <= 710
        inMatch ((GHC.Match (Just (fun,_)) pats _mtyp _grhs)::GHC.Match GHC.RdrName (GHC.LHsExpr GHC.RdrName))
-#else
+#elif __GLASGOW_HASKELL__ <= 800
        inMatch ((GHC.Match (GHC.FunBindMatch fun _) pats _mtyp _grhs)::GHC.Match GHC.RdrName (GHC.LHsExpr GHC.RdrName))
+#else
+       inMatch ((GHC.Match (GHC.FunRhs fun _ _) pats _mtyp _grhs)::GHC.Match GHC.RdrName (GHC.LHsExpr GHC.RdrName))
 #endif
          = case locToRdrName pos pats of
              Nothing  -> Nothing
@@ -852,4 +873,3 @@ rmNthArgInFunCallMod pn nTh = do
       putRefactParsed parsed' emptyAnns
       return ()
     _ns   -> error "HaRe: rmParam: more than one name matches"
-
