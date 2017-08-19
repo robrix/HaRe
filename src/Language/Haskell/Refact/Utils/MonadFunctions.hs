@@ -83,6 +83,7 @@ import Data.List
 
 import qualified GHC           as GHC
 import qualified GhcMonad      as GHC
+import qualified GhcMod.Utils  as GM
 import qualified Module        as GHC
 import qualified Name          as GHC
 import qualified Unique        as GHC
@@ -151,7 +152,7 @@ putRefactRenamed renamed = do
   mrm <- gets rsModule
   let rm = gfromJust "putRefactRenamed" mrm
   let tm = rsTypecheckedMod rm
-  let tm' = tm { tmRenamedSource = renamed }
+  let tm' = tm { tm_renamed_source = Just renamed }
   let rm' = rm { rsTypecheckedMod = tm' }
   put $ st {rsModule = Just rm'}
 
@@ -161,7 +162,7 @@ getRefactParsed = do
   let tm = gfromJust "getRefactParsed" mtm
   let t  = rsTypecheckedMod tm
 
-  let pm = tmParsedModule t
+  let pm = tm_parsed_module t
   return $ GHC.pm_parsed_source pm
 
 putRefactParsed :: GHC.ParsedSource -> Anns -> RefactGhc ()
@@ -174,8 +175,8 @@ putRefactParsed parsed newAnns = do
   -- let tk' = modifyAnns (rsTokenCache rm) (const newAnns)
   let tk' = modifyAnns (rsTokenCache rm) (mergeAnns newAnns)
 
-  let pm = (tmParsedModule tm) { GHC.pm_parsed_source = parsed }
-  let tm' = tm { tmParsedModule = pm }
+  let pm = (tm_parsed_module tm) { GHC.pm_parsed_source = parsed }
+  let tm' = tm { tm_parsed_module = pm }
   let rm' = rm { rsTypecheckedMod = tm', rsTokenCache = tk', rsStreamModified = RefacModified }
   put $ st {rsModule = Just rm'}
 
@@ -323,8 +324,11 @@ getRefactFileName = do
   mtm <- gets rsModule
   case mtm of
     Nothing  -> return Nothing
-    Just tm -> return $ Just (fileNameFromModSummary $ GHC.pm_mod_summary
-                              $ tmParsedModule $ rsTypecheckedMod tm)
+    Just tm -> do
+      revMap <- RefactGhc GM.mkRevRedirMapFunc
+      return $ Just (revMap $ fileNameFromModSummary $ GHC.pm_mod_summary
+                            $ tm_parsed_module $ rsTypecheckedMod tm)
+    --Just tm -> return $ Just (tmFileNameUnmapped $ rsTypecheckedMod tm)
 
 -- ---------------------------------------------------------------------
 
@@ -344,7 +348,7 @@ getRefactModule = do
     Nothing  -> error $ "Hare.MonadFunctions.getRefactModule:no module loaded"
     Just tm -> do
       let t  = rsTypecheckedMod tm
-      let pm = tmParsedModule t
+      let pm = tm_parsed_module t
       return (GHC.ms_mod $ GHC.pm_mod_summary pm)
 
 -- ---------------------------------------------------------------------
@@ -466,8 +470,8 @@ initRefactModule cppComments tm
                  , rsNameMap = initRdrNameMap tm
                  , rsTokenCache = initTokenCacheLayout (relativiseApiAnnsWithComments
                                      cppComments
-                                    (GHC.pm_parsed_source $ tmParsedModule tm)
-                                    (GHC.pm_annotations $ tmParsedModule tm))
+                                    (GHC.pm_parsed_source $ tm_parsed_module tm)
+                                    (GHC.pm_annotations $ tm_parsed_module tm))
                  , rsStreamModified = RefacUnmodifed
                  })
 
@@ -487,10 +491,10 @@ initTokenCacheLayout a = TK (Map.fromList [((TId 0),a)]) (TId 0)
 initRdrNameMap :: TypecheckedModule -> NameMap
 initRdrNameMap tm = r
   where
-    parsed  = GHC.pm_parsed_source $ tmParsedModule tm
-    renamed = tmRenamedSource tm
+    parsed  = GHC.pm_parsed_source $ tm_parsed_module tm
+    renamed = tm_renamed_source tm
 #if __GLASGOW_HASKELL__ > 710
-    typechecked = tmTypecheckedSource tm
+    typechecked = tm_typechecked_source tm
 #endif
 
     checkRdr :: GHC.Located GHC.RdrName -> Maybe [(GHC.SrcSpan,GHC.RdrName)]

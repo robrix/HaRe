@@ -31,7 +31,7 @@ import Data.Foldable
 import Data.List
 import Data.Maybe
 
-import qualified GhcMod as GM
+import qualified GhcModCore as GM
 import Language.Haskell.Refact.API
 
 import Language.Haskell.GHC.ExactPrint.Types
@@ -90,7 +90,7 @@ compLiftToTopLevel :: FilePath -> SimpPos
      -> RefactGhc [ApplyRefacResult]
 compLiftToTopLevel fileName (row,col) = do
       parseSourceFileGhc fileName
-      logParsedSource "liftToMod orig:"
+      -- logParsedSource "liftToMod orig:"
       parsed  <- getRefactParsed
       nm <- getRefactNameMap
 
@@ -355,7 +355,7 @@ liftOneLevel' modName pn@(GHC.L _ n) = do
       doLiftOneLevel = do
              logm $ "in doLiftOneLevel"
              parsed <- getRefactParsed
-             logDataWithAnns "doLiftOneLevel:parsed" parsed
+             -- logDataWithAnns "doLiftOneLevel:parsed" parsed
              nm <- getRefactNameMap
              ans <- liftT getAnnsT
              zp <- ztransformStagedM SYB.Parser
@@ -1327,7 +1327,7 @@ doDemoting' t pn = do
                          -> t
                          -> RefactGhc t
           duplicateDecls pns demoted dsig o = do
-            logm $ "duplicateDecls:t=" ++ SYB.showData SYB.Parser 0 o
+            -- logm $ "duplicateDecls:t=" ++ SYB.showData SYB.Parser 0 o
             hasDeclsSybTransform workerHsDecls workerBind o
             where
               workerHsDecls :: forall t. HasDecls t => t -> RefactGhc t

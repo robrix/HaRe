@@ -53,7 +53,7 @@ import Language.Haskell.GHC.ExactPrint.Annotate
 import Language.Haskell.GHC.ExactPrint.Parsers
 import Language.Haskell.GHC.ExactPrint.Types
 import Language.Haskell.GHC.ExactPrint.Utils
-import qualified GhcMod       as GM
+import qualified GhcModCore   as GM
 import qualified GhcMod.Types as GM
 import Language.Haskell.Refact.Utils.Monad
 import Language.Haskell.Refact.Utils.MonadFunctions
@@ -221,12 +221,13 @@ testOptions :: GM.Options
 testOptions = GM.defaultOptions {
     GM.optOutput     = GM.OutputOpts {
       GM.ooptLogLevel       = GM.GmError
+      -- GM.ooptLogLevel       = GM.GmDebug
       -- GM.ooptLogLevel       = GM.GmVomit
     , GM.ooptStyle          = GM.PlainStyle
     , GM.ooptLineSeparator  = GM.LineSeparator "\0"
     , GM.ooptLinePrefix     = Nothing
     }
-
+    -- , GM.optGhcUserOptions = ["-v4", "-DDEBUG"]
     }
 
 -- ---------------------------------------------------------------------
@@ -255,7 +256,7 @@ showAnnDataFromState st =
     Just tm -> r
       where
         anns = tkCache (rsTokenCache tm) Map.! mainTid
-        parsed = GHC.pm_parsed_source $ tmParsedModule
+        parsed = GHC.pm_parsed_source $ tm_parsed_module
                  $ rsTypecheckedMod tm
         r = showAnnData anns 0 parsed
     Nothing -> []
@@ -304,7 +305,7 @@ sourceFromState st =
     Just tm -> r
       where
         anns = tkCache (rsTokenCache tm) Map.! mainTid
-        parsed = GHC.pm_parsed_source $ tmParsedModule
+        parsed = GHC.pm_parsed_source $ tm_parsed_module
                  $ rsTypecheckedMod tm
         r = exactPrint parsed anns
     Nothing -> []

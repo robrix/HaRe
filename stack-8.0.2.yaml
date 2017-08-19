@@ -1,5 +1,7 @@
 resolver: nightly-2017-06-14
 packages:
 - .
-
-
+- location:
+    git: https://github.com/alanz/ghc-mod.git
+    commit: 86ca8bc766556df2a64ae062e4489714249bbd7c
+  extra-dep: true

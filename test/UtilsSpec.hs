@@ -41,7 +41,7 @@ spec = do
   describe "locToExp on ParsedSource" $ do
     it "p:finds the largest leftmost expression contained in a given region #1" $ do
       t <- ct $ parsedFileGhc "./TypeUtils/B.hs"
-      let parsed = GHC.pm_parsed_source $ tmParsedModule t
+      let parsed = GHC.pm_parsed_source $ tm_parsed_module t
 
       let (Just expr) = locToExp (7,7) (7,43) parsed :: Maybe (GHC.Located (GHC.HsExpr GHC.RdrName))
       getLocatedStart expr `shouldBe` (7,9)
@@ -50,7 +50,7 @@ spec = do
     it "p:finds the largest leftmost expression contained in a given region #2" $ do
       -- ((_, _, mod), toks) <- parsedFileBGhc
       t <- ct $ parsedFileGhc "./TypeUtils/B.hs"
-      let modu = GHC.pm_parsed_source $ tmParsedModule t
+      let modu = GHC.pm_parsed_source $ tm_parsed_module t
 
       let (Just expr) = locToExp (7,7) (7,41) modu :: Maybe (GHC.Located (GHC.HsExpr GHC.RdrName))
       getLocatedStart expr `shouldBe` (7,12)
@@ -77,17 +77,44 @@ spec = do
   -- -------------------------------------------------------------------
 
   describe "loading a file" $ do
+    it "loads a single file" $ do
+      t <- ct $ parsedFileGhc "./B.hs"
+
+      let parsed = GHC.pm_parsed_source $ tm_parsed_module t
+      (showGhc parsed) `shouldBe` "module B where\nbob :: Int -> Int -> Int\nbob x y = x + y"
+
+     -- ---------------------------------
+
+    it "loads the same file more than once" $ do
+      -- We are checking that loading via the GHC hook does not get defeated the
+      -- second time by the GHC recompile checker.
+      let testFileName = "./B.hs"
+      let
+        comp = do
+         parseSourceFileGhc testFileName
+         p1 <- getRefactParsed
+         parseSourceFileGhc testFileName
+         p2 <- getRefactParsed
+         return (p1,p2)
+      ((parsed1,parsed2),_s) <- ct $ runRefactGhc comp initialState testOptions
+      -- ((parsed1,parsed2),_s) <- ct $ runRefactGhc comp initialLogOnState testOptions
+
+      (showGhc parsed1) `shouldBe` "module B where\nbob :: Int -> Int -> Int\nbob x y = x + y"
+      (showGhc parsed2) `shouldBe` "module B where\nbob :: Int -> Int -> Int\nbob x y = x + y"
+
+     -- ---------------------------------
+
     it "loads a file having the LANGUAGE CPP pragma" $ do
       t <- ct $ parsedFileGhc "./BCpp.hs"
 
-      let parsed = GHC.pm_parsed_source $ tmParsedModule t
+      let parsed = GHC.pm_parsed_source $ tm_parsed_module t
       (showGhc parsed) `shouldBe` "module BCpp where\nbob :: Int -> Int -> Int\nbob x y = x + y"
 
      -- ---------------------------------
     it "loads a file having a top comment and LANGUAGE CPP pragma" $ do
       t <- ct $ parsedFileGhc "./BCppTC.hs"
 
-      let parsed = GHC.pm_parsed_source $ tmParsedModule t
+      let parsed = GHC.pm_parsed_source $ tm_parsed_module t
       (showGhc parsed) `shouldBe` "module BCppTC where\nbob :: Int -> Int -> Int\nbob x y = x + y"
 
      -- ---------------------------------
@@ -103,19 +130,31 @@ spec = do
 
     -- ---------------------------------
 
-    it "loads a series of files based on cabal1" $ do
+    it "loads a series of files based on cabal1 1" $ do
 
-      currentDir <- getCurrentDirectory
-      setCurrentDirectory "./test/testdata/cabal/cabal1"
+      let dir = "./test/testdata/cabal/cabal1"
 
       let settings = defaultSettings { rsetEnabledTargets = (True,True,False,False)
                                      -- , rsetVerboseLevel = Debug
                                      }
 
-      r <- rename settings testOptions "./src/Foo/Bar.hs" "baz1" (3, 1)
-      -- r <- rename logTestSettings cradle "./src/Foo/Bar.hs" "baz1" (3, 1)
-      r' <- mapM makeRelativeToCurrentDirectory r
-      setCurrentDirectory currentDir
+      r <-  cdAndDo dir $ rename settings testOptions "./src/main.hs" "baz1" (7, 1)
+      r' <- cdAndDo dir $ mapM makeRelativeToCurrentDirectory r
+
+      (show r') `shouldBe` "[\"src/main.hs\"]"
+
+    -- ---------------------------------
+
+    it "loads a series of files based on cabal1 2" $ do
+
+      let dir = "./test/testdata/cabal/cabal1"
+
+      let settings = defaultSettings { rsetEnabledTargets = (True,True,False,False)
+                                     -- , rsetVerboseLevel = Debug
+                                     }
+
+      r <-  cdAndDo dir $ rename settings testOptions "./src/Foo/Bar.hs" "baz1" (3, 1)
+      r' <- cdAndDo dir $ mapM makeRelativeToCurrentDirectory r
 
       (show r') `shouldBe` "[\"src/Foo/Bar.hs\","
                           ++"\"src/main.hs\"]"
@@ -125,22 +164,14 @@ spec = do
 
     it "loads a series of files based on cabal2, which has 2 exe" $ do
 
-      currentDir <- getCurrentDirectory
-      setCurrentDirectory "./test/testdata/cabal/cabal2"
+      let dir = "./test/testdata/cabal/cabal2"
 
       let settings = defaultSettings { rsetEnabledTargets = (True,True,True,True)
                                      -- , rsetVerboseLevel = Debug
                                      }
 
-      let handler = [Handler handler1]
-          handler1 :: GHC.SourceError -> IO [String]
-          handler1 e = do
-             setCurrentDirectory currentDir
-             return [show e]
-
-      r <- catches (rename settings testOptions "./src/Foo/Bar.hs" "baz1" (3, 1)) handler
-      r' <- mapM makeRelativeToCurrentDirectory r
-      setCurrentDirectory currentDir
+      r  <- cdAndDo dir $ rename settings testOptions "./src/Foo/Bar.hs" "baz1" (3, 1)
+      r' <- cdAndDo dir $ mapM makeRelativeToCurrentDirectory r
 
 
       (show r') `shouldBe` "[\"src/Foo/Bar.hs\","++
@@ -356,14 +387,14 @@ spec = do
   describe "getModuleName" $ do
     it "returns a string for the module name if there is one" $ do
       t <- ct $ parsedFileGhc "./TypeUtils/B.hs"
-      let modu = GHC.pm_parsed_source $ tmParsedModule t
+      let modu = GHC.pm_parsed_source $ tm_parsed_module t
 
       let (Just (_modname,modNameStr)) = getModuleName modu
       modNameStr `shouldBe` "TypeUtils.B"
 
     it "returns Nothing for the module name otherwise" $ do
       t <- ct $ parsedFileGhc "./NoMod.hs"
-      let modu = GHC.pm_parsed_source $ tmParsedModule t
+      let modu = GHC.pm_parsed_source $ tm_parsed_module t
       getModuleName modu `shouldBe` Nothing
 
   -- -------------------------------------------------------------------
@@ -402,6 +433,7 @@ spec = do
          g <- clientModsAndFiles tm
          return g
       (mg,_s) <- ct $ runRefactGhc comp initialState testOptions
+      -- (mg,_s) <- ct $ runRefactGhc comp initialLogOnState testOptions
       showGhc (map GM.mpModule mg) `shouldBe` "[Main]"
 
     ------------------------------------
@@ -450,6 +482,7 @@ spec = do
          g <- clientModsAndFiles tm
          return g
       (mg,_s) <- cdAndDo testDir $ runRefactGhc comp initialState testOptions
+      -- (mg,_s) <- cdAndDo testDir $ runRefactGhc comp initialLogOnState testOptions
       showGhc (map GM.mpModule mg) `shouldBe` "[]"
 
 
@@ -539,7 +572,7 @@ spec = do
           return (pr,g)
 
       ( (t, mg), _s) <- ct $ runRefactGhc comp initialState testOptions
-      let parsed = GHC.pm_parsed_source $ tmParsedModule t
+      let parsed = GHC.pm_parsed_source $ tm_parsed_module t
 
       (show $ getModuleName parsed) `shouldBe` "Just (ModuleName \"S1\",\"S1\")"
       (sort $ map (showGhc . GM.mpModule) mg) `shouldBe` ["M2", "M3", "Main"]
@@ -556,7 +589,7 @@ spec = do
 
           return (pr,g)
       ((t, mg ), _s) <- ct $ runRefactGhc comp initialState testOptions
-      let parsed = GHC.pm_parsed_source $ tmParsedModule t
+      let parsed = GHC.pm_parsed_source $ tm_parsed_module t
 
       (show $ getModuleName parsed) `shouldBe` "Just (ModuleName \"S1\",\"S1\")"
       (sort $ map (showGhc . GM.mpModule) mg) `shouldBe` ["M2", "M3", "Main"]
@@ -573,7 +606,7 @@ spec = do
 
           return (pr,g)
       ((t, mg), _s) <- ct $ runRefactGhc comp  initialState testOptions
-      let parsed = GHC.pm_parsed_source $ tmParsedModule t
+      let parsed = GHC.pm_parsed_source $ tm_parsed_module t
       (show $ getModuleName parsed) `shouldBe` "Just (ModuleName \"DupDef.Dd1\",\"DupDef.Dd1\")"
       showGhc (map GM.mpModule mg) `shouldBe` "[DupDef.Dd2, DupDef.Dd3]"
 
@@ -638,7 +671,7 @@ spec = do
     it "loads a file from a sub directory" $ do
       t <- ct $ parsedFileGhc "./FreeAndDeclared/DeclareS.hs"
       fileName <- canonicalizePath "./test/testdata/FreeAndDeclared/DeclareS.hs"
-      let parsed = GHC.pm_parsed_source $ tmParsedModule t
+      let parsed = GHC.pm_parsed_source $ tm_parsed_module t
       let
         comp = do
           parseSourceFileGhc fileName

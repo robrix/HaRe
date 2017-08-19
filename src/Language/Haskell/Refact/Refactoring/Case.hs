@@ -11,7 +11,7 @@ import qualified GHC.SYB.Utils         as SYB
 import qualified BasicTypes    as GHC
 import qualified GHC           as GHC
 
-import qualified GhcMod as GM (Options(..))
+import qualified GhcModCore as GM (Options(..))
 import Language.Haskell.Refact.API
 
 -- To be moved into HaRe API
@@ -36,7 +36,7 @@ compIfToCase fileName beginPos endPos = do
        parseSourceFileGhc fileName
        parsed <- getRefactParsed
        oldAnns <- liftT getAnnsT
-       logm $ "Case.compIfToCase:parsed=" ++ (showAnnData oldAnns 0 parsed) -- ++AZ++
+       -- logm $ "Case.compIfToCase:parsed=" ++ (showAnnData oldAnns 0 parsed) -- ++AZ++
        let expr = locToExp beginPos endPos parsed
        case expr of
          Just exp1@(GHC.L _ (GHC.HsIf _ _ _ _))

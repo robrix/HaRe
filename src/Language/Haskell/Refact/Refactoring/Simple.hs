@@ -6,7 +6,7 @@ import qualified Data.Generics         as SYB
 
 import qualified GHC           as GHC
 
-import qualified GhcMod as GM (Options(..))
+import qualified GhcModCore as GM (Options(..))
 import Language.Haskell.Refact.API
 
 -- To be moved into HaRe API
@@ -34,7 +34,6 @@ pattern HsPar l s = GHC.L l (GHC.HsPar s)
 
 removeBracketTransform  :: FilePath -> SimpPos -> SimpPos -> RefactGhc ()
 removeBracketTransform fileName beginPos endPos = do
-       parseSourceFileGhc fileName
        parsed <- getRefactParsed
        let expr :: GHC.Located (GHC.HsExpr GHC.RdrName)
            expr = fromJust $ locToExp beginPos endPos parsed

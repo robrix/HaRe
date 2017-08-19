@@ -150,6 +150,7 @@ import qualified BasicTypes    as GHC
 #endif
 import qualified Unique        as GHC
 import qualified Var           as GHC
+import qualified TcRnMonad     as GHC
 
 import qualified Var           as Var
 
@@ -378,9 +379,9 @@ modIsExported modName (_g,_emps,mexps,_mdocs)
 isExported :: GHC.Name -> RefactGhc Bool
 isExported n = do
   typechecked <- getTypecheckedModule
-  -- let modInfo = GHC.tm_checked_module_info typechecked
-  -- return $ GHC.modInfoIsExportedName modInfo n
-  return $ GHC.elemNameSet n (GHC.availsToNameSet (tmMinfExports typechecked))
+  let modInfo = GHC.tm_checked_module_info typechecked
+  return $ GHC.modInfoIsExportedName modInfo n
+  -- return $ GHC.elemNameSet n (GHC.availsToNameSet (minf_exports $ tm_checked_module_info typechecked))
 
 
 -- modInfoIsExportedName :: ModuleInfo -> Name -> Bool
@@ -465,7 +466,7 @@ usedWithoutQualR name t = isJust $ SYB.something (inName) t
 getModule :: RefactGhc GHC.Module
 getModule = do
   typechecked <- getTypecheckedModule
-  return $ GHC.ms_mod $ GHC.pm_mod_summary $ tmParsedModule typechecked
+  return $ GHC.ms_mod $ GHC.pm_mod_summary $ tm_parsed_module typechecked
 
 -- ---------------------------------------------------------------------
 
@@ -519,7 +520,7 @@ isTopLevelPN n = do
 
 modInfoTopLevelScope :: TypecheckedModule -> Maybe [GHC.Name]
 modInfoTopLevelScope tm
-  = fmap (map GHC.gre_name . GHC.globalRdrEnvElts) (tmMinfRdrEnv tm)
+  = fmap (map GHC.gre_name . GHC.globalRdrEnvElts) (Just $ GHC.tcg_rdr_env $ fst $ tm_internals_ tm)
 
 
 -- |Return True if a PName is a local PName.
@@ -2520,7 +2521,7 @@ useLoc (GHC.L l _) = GHC.srcSpanStart l
 findIdForName :: GHC.Name -> RefactGhc (Maybe GHC.Id)
 findIdForName n = do
   tm <- getTypecheckedModule
-  let t = tmTypecheckedSource tm
+  let t = tm_typechecked_source tm
   let r = SYB.somethingStaged SYB.Parser Nothing (Nothing `SYB.mkQ` worker) t
       worker (i::GHC.Id)
          | (GHC.nameUnique n) ==  (GHC.varUnique i) = Just i

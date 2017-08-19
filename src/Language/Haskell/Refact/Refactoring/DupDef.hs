@@ -16,7 +16,7 @@ import qualified RdrName       as GHC
 import Data.List
 import Data.Maybe
 
-import qualified GhcMod       as GM
+import qualified GhcModCore   as GM
 import qualified GhcMod.Types as GM
 import Language.Haskell.Refact.API
 
@@ -54,7 +54,7 @@ compDuplicateDef fileName newName (row, col) = do
             do
               let pn = GHC.L l (rdrName2NamePure nm lr)
               logm $ "DupDef.compDuplicateDef:about to applyRefac for:pn=" ++ SYB.showData SYB.Parser 0 pn
-              (refactoredMod,(isDone,nn)) <- applyRefac (doDuplicating pn newName) (RSFile fileName)
+              (refactoredMod,(isDone,nn)) <- applyRefac (doDuplicating pn newName) RSAlreadyLoaded
               logm $ "DupDef.com:isDone=" ++ show isDone
               case isDone of
                 DupDefFailed -> error "The selected identifier is not a function/simple pattern name, or is not defined in this module "

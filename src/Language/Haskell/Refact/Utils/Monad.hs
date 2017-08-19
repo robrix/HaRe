@@ -46,10 +46,11 @@ import qualified Outputable    as GHC
 
 import Control.Applicative
 import Control.Monad.State
+import Data.IORef
 --import Data.Time.Clock
 import Distribution.Helper
 import Exception
-import qualified GhcMod             as GM
+import qualified GhcModCore         as GM
 import qualified GhcMod.Monad.Out   as GM
 import qualified GhcMod.Monad.Types as GM
 import qualified GhcMod.Target      as GM
@@ -113,9 +114,6 @@ instance Show GHC.Name where
 
 deriving instance Show (GHC.Located GHC.Token)
 
-instance Show GHC.TypecheckedModule where
-  show t = showGhc (GHC.pm_parsed_source $ GHC.tm_parsed_module t)
-
 data RefactFlags = RefFlags
        { rsDone :: !Bool -- ^Current traversal has already made a change
        } deriving (Show)
@@ -135,6 +133,10 @@ data RefactState = RefSt
         , rsCurrentTarget :: !(Maybe TargetModule) -- TODO:AZ: push this into rsModule
         , rsModule        :: !(Maybe RefactModule) -- ^The current module being refactored
         } deriving (Show)
+
+instance Show (IORef HookIORefData) where
+  show _ = "IORef HookIORefData"
+
 {-
 Note [rsSrcSpanCol]
 ~~~~~~~~~~~~~~~~~~~
@@ -151,8 +153,9 @@ field, to ensure uniqueness.
 
 data RefacSource = RSFile FilePath
                  | RSTarget TargetModule
-                 | RSMod GHC.ModSummary
+                 -- x| RSMod GHC.ModSummary
                  | RSAlreadyLoaded
+                 deriving (Show)
 
 type TargetModule = GM.ModulePath -- From ghc-mod
 
@@ -259,7 +262,7 @@ cabalModuleGraphs = RefactGhc doCabalModuleGraphs
         Just _ -> do
           mcs <- GM.cabalResolvedComponents
           let graph = map GM.gmcHomeModuleGraph $ Map.elems mcs
-          return $ graph
+          return graph
         Nothing -> return []
 
 -- ---------------------------------------------------------------------

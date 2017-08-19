@@ -126,7 +126,7 @@ Library
                                , filepath
                                , ghc
                                , ghc-exactprint >= 0.5.3.0
-                               , ghc-mod >= 5.8
+                               , ghc-mod-core == 5.9.0.*
                                , ghc-syb-utils
                                , hslogger
                                , monad-control
@@ -195,7 +195,7 @@ Executable ghc-hare
 
         -- GHC 7.10.2 ships with base 4.8.1.0
         Build-Depends:          base >= 4.8.1.0  && < 5
-                                , ghc-mod >= 5.8
+                                , ghc-mod-core == 5.9.0.*
                                 , gitrev >= 1.1
                                 , mtl
                                 , optparse-applicative >= 0.13.2 && < 0.15
@@ -222,7 +222,7 @@ test-suite spec
   main-is:
       Main.hs
   Hs-Source-Dirs:
-    -- src
+    src
     test
   other-modules:
       AddRmParamSpec
@@ -271,7 +271,7 @@ test-suite spec
     , foldl
     , ghc
     , ghc-exactprint >= 0.5.3.0
-    , ghc-mod >= 5.8
+    , ghc-mod-core == 5.9.0.*
     , ghc-syb-utils
     , hslogger
     , hspec
@@ -286,7 +286,13 @@ test-suite spec
     , conversion-text
     , parsec
     , case-insensitive
-    , HaRe
+    -- , HaRe
+    , cabal-helper
+    , filepath
+    , monad-control
+    , Strafunski-StrategyLib
+    , syb
+    , syz
   Extensions:      CPP
   if impl (ghc < 7.10.2)
     buildable: False
@@ -297,7 +303,7 @@ test-suite spec
 --   main-is:       doctests.hs
 --   build-depends: base        >= 4.0  && < 4.9
 --                , doctest >= 0.8
---                , ghc-mod
+--                , ghc-mod-core
 --   Hs-Source-Dirs:
 --     -- src
 --     test
