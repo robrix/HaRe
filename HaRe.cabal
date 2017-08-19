@@ -46,7 +46,7 @@ Category:                       Development, Refactoring
 Cabal-Version:                  >= 1.8
 Build-Type:                     Simple
 
-tested-with:                    GHC == 7.10.3, GHC == 8.0.1, GHC == 8.0.2
+tested-with:                    GHC == 7.10.3, GHC == 8.0.1, GHC == 8.0.2, GHC == 8.2.1
 
 data-files:                     elisp/*.el
                                 configure.sh
@@ -126,7 +126,7 @@ Library
                                , filepath
                                , ghc
                                , ghc-exactprint >= 0.5.3.0
-                               , ghc-mod == 5.8.0.*
+                               , ghc-mod >= 5.8
                                , ghc-syb-utils
                                , hslogger
                                , monad-control
@@ -195,10 +195,10 @@ Executable ghc-hare
 
         -- GHC 7.10.2 ships with base 4.8.1.0
         Build-Depends:          base >= 4.8.1.0  && < 5
-                                , ghc-mod == 5.8.0.*
+                                , ghc-mod >= 5.8
                                 , gitrev >= 1.1
                                 , mtl
-                                , optparse-applicative == 0.13.2.*
+                                , optparse-applicative >= 0.13.2 && < 0.15
                                 , optparse-simple
                                 , Cabal
                                 -- , Paths_HaRe
@@ -271,7 +271,7 @@ test-suite spec
     , foldl
     , ghc
     , ghc-exactprint >= 0.5.3.0
-    , ghc-mod == 5.8.0.*
+    , ghc-mod >= 5.8
     , ghc-syb-utils
     , hslogger
     , hspec
