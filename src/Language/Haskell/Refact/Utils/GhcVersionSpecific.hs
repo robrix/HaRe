@@ -22,7 +22,9 @@ import qualified Outputable    as GHC
 
 
 prettyprint :: (GHC.Outputable a) => a -> String
-#if __GLASGOW_HASKELL__ > 706
+#if __GLASGOW_HASKELL__ > 800
+prettyprint x = let df = GHC.unsafeGlobalDynFlags in GHC.renderWithStyle df (GHC.ppr x) (GHC.mkUserStyle df GHC.neverQualify GHC.AllTheWay)
+#elif __GLASGOW_HASKELL__ > 706
 prettyprint x = GHC.renderWithStyle GHC.unsafeGlobalDynFlags (GHC.ppr x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
 #elif __GLASGOW_HASKELL__ > 704
 prettyprint x = GHC.renderWithStyle GHC.tracingDynFlags (GHC.ppr x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
@@ -33,7 +35,9 @@ prettyprint x = GHC.renderWithStyle                     (GHC.ppr x) (GHC.mkUserS
 -- ---------------------------------------------------------------------
 
 prettyprint2 :: (GHC.Outputable a) => a -> String
-#if __GLASGOW_HASKELL__ > 706
+#if __GLASGOW_HASKELL__ > 800
+prettyprint2 x = let df = GHC.unsafeGlobalDynFlags in GHC.renderWithStyle df (GHC.ppr x) (GHC.cmdlineParserStyle df)
+#elif __GLASGOW_HASKELL__ > 706
 prettyprint2 x = GHC.renderWithStyle GHC.unsafeGlobalDynFlags (GHC.ppr x) (GHC.cmdlineParserStyle)
 #elif __GLASGOW_HASKELL__ > 704
 prettyprint2 x = GHC.renderWithStyle GHC.tracingDynFlags (GHC.ppr x) (GHC.cmdlineParserStyle)
@@ -44,7 +48,9 @@ prettyprint2 x = GHC.renderWithStyle                     (GHC.ppr x) (GHC.cmdlin
 -- ---------------------------------------------------------------------
 
 ppType :: GHC.Type -> String
-#if __GLASGOW_HASKELL__ > 706
+#if __GLASGOW_HASKELL__ > 800
+ppType x = let df = GHC.unsafeGlobalDynFlags in GHC.renderWithStyle df (GHC.pprParendType x) (GHC.mkUserStyle df GHC.neverQualify GHC.AllTheWay)
+#elif __GLASGOW_HASKELL__ > 706
 ppType x = GHC.renderWithStyle GHC.unsafeGlobalDynFlags (GHC.pprParendType x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
 #elif __GLASGOW_HASKELL__ > 704
 ppType x = GHC.renderWithStyle GHC.tracingDynFlags (GHC.pprParendType x) (GHC.mkUserStyle GHC.neverQualify GHC.AllTheWay)
